@@ -1,0 +1,8 @@
+[report]
+fail_under = 80
+show_missing = True
+
+[run]
+omit =
+    src/*/_version.py
+    tests*

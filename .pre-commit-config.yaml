@@ -1,0 +1,15 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+fail_fast: true
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.1.0
+    hooks:
+        - id: no-commit-to-branch
+          args: [ --branch, main ]
+-   repo: local
+    hooks:
+        -   id: lint
+            name: lint
+            entry: bash -c "make lint; if [ $? -ne 0 ]; then echo \"There is a linting error. Try running 'make format'.\" && exit $?; fi"
+            language: system

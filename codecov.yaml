@@ -1,0 +1,9 @@
+comment:
+  layout: "diff"
+
+coverage:
+  status:
+    patch:
+      default:
+        target: 80%
+        threshold: 1%
