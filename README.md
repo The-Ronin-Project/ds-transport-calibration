@@ -34,7 +34,7 @@ For example:
 
 ### Step 2: Update the Package Name
 
-Next, update all references to `hello-world` and `hello_world` with your package name (`{NAME}`) using the established
+Next, update all references to `ds-transport-calibration` and `ds_transport_calibration` with your package name (`{NAME}`) using the established
 casing conventions.
 
 For example:
@@ -83,13 +83,13 @@ new repository. Then reference [CONTRIBUTING.md](CONTRIBUTING.md) for next steps
 ## Installation
 
 ```bash
-pip install hello-world
+pip install ds-transport-calibration
 ```
 
 ## Usage
 
 ```python
-from hello_world import say_hello
+from ds_transport_calibration import say_hello
 
 msg = say_hello("World")
 

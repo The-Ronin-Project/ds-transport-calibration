@@ -1,4 +1,4 @@
-name: hello-world
+name: ds-transport-calibration
 dependencies:
   - python=3.8
   - pip

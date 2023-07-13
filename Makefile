@@ -73,8 +73,8 @@ package:
 .PHONY: validate
 validate:
 	@python -m pip install --force-reinstall ./dist/*.whl
-	@python -c "import hello_world"
-	@python -m pip uninstall -y hello-world
+	@python -c "import ds_transport_calibration"
+	@python -m pip uninstall -y ds-transport-calibration
 
 # Release the package using Twine.
 #

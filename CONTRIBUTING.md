@@ -30,7 +30,7 @@ Create a Conda virtual environment using the following `Makefile` target.
 
 Activate the virtual environment.
 
-    conda activate hello-world
+    conda activate ds-transport-calibration
 
 Finally, execute the following `Makefile` target to install all dependencies required for project development.
 
@@ -40,7 +40,7 @@ Finally, execute the following `Makefile` target to install all dependencies req
 
 ### Writing source code
 
-All project development occurs within the established Python module located at [./src/hello_world](./src/hello_world).
+All project development occurs within the established Python module located at [./src/ds_transport_calibration](./src/ds_transport_calibration).
 When developing source code, please use relative imports to reference other source code. This ensures source code is
 referencing source code and not an installed package with the same name.
 
@@ -59,7 +59,7 @@ cannot run this script from PyCharm using the run command. Instead, execute the 
 
     make package
     python -m pip install --force-reinstall ./dist/*.whl
-    python -m hello_world
+    python -m ds_transport_calibration
 
 ## Testing
 
@@ -77,7 +77,7 @@ For example:
 ```python
 import unittest
 
-from src.hello_world import say_hello
+from src.ds_transport_calibration import say_hello
 
 
 class TestSayHello(unittest.TestCase):
