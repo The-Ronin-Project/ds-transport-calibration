@@ -81,10 +81,11 @@ The class_probability is a numpy array containing the background class probabili
 ## Advanced settings
 
 Ratio estimator: when fitting a calibrator, it is possible to specify the internal algorithm to use for density estimates. This is
-accomplished by passing ratio_estimator='logistic' or ratio_estimator='histogram' to the calibrator's fit function.
+accomplished by passing ratio_estimator='logistic' or ratio_estimator='histogram' to the XGB wrapper's fit function or the generic
+calibrator's constructor.
 Typically, 'histogram' should be used for binary classification and 'logistic' should be used for multi-class.
 
-Input/Output shapes: this object accepts a variety of input shapes for convenient usage. The output shape is determined so that it
+Input/Output shapes: the generic calibrator object accepts a variety of input shapes for convenient usage. The output shape is determined so that it
 is consistent with the input shape. See the docstring of the calibrated_probability(...) method for more details.
 
 ## Contributing
