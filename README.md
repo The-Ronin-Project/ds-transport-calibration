@@ -25,6 +25,8 @@ Alternatively, it is possible to use a universal explainer, like [permutation](h
 in order to compute shap values on calibrated scores.
 
 ```python
+import numpy
+import shap
 import transport_calibration
 
 # Fit the classifier
@@ -54,6 +56,36 @@ model.transport_calibration_class_probability = None
 # Compute calibrated probabilities
 calibrated_predictions = model.predict_proba(x_test)
 ```
+
+## Usage of generic calibrator
+
+For non-XGBoost applications, users may use the base calibrator object.
+
+To train it, first compute probabilities from your model and store them in
+an (N,C) numpy array, where N is the number of examples and C is the number of classes. Then fit the calibrator by
+```python
+import transport_calibration
+
+# Fit the calibrator
+calibrator = transport_calibration.TransportCalibration(model_scores, y_labels, training_class_probability)
+```
+
+After the calibrator is fit, compute calibrated scores by
+```python
+# Compute calibrated probability
+model_scores_calibrated = calibrator.calibrated_probability(model_scores, class_probability)
+```
+
+The class_probability is a numpy array containing the background class probability in the target domain.
+
+## Advanced settings
+
+Ratio estimator: when fitting a calibrator, it is possible to specify the internal algorithm to use for density estimates. This is
+accomplished by passing ratio_estimator='logistic' or ratio_estimator='histogram' to the calibrator's fit function.
+Typically, 'histogram' should be used for binary classification and 'logistic' should be used for multi-class.
+
+Input/Output shapes: this object accepts a variety of input shapes for convenient usage. The output shape is determined so that it
+is consistent with the input shape. See the docstring of the calibrated_probability(...) method for more details.
 
 ## Contributing
 
