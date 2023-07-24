@@ -31,9 +31,6 @@ def run_xgb_wrapper_with_shap(
     n_classes = 2
     n_resamples = 2
 
-    # Initialize output
-    results = {}
-
     # Simulate data
     total_samples = n_train + n_calibrate + n_validate
     x, y = sklearn.datasets.make_classification(
@@ -48,10 +45,10 @@ def run_xgb_wrapper_with_shap(
     # Split the datasets
     x_train = x[0:n_train]
     y_train = y[0:n_train]
-    x_calibrate = x[n_train : (n_train + n_calibrate)]
-    y_calibrate = y[n_train : (n_train + n_calibrate)]
-    x_validate = x[(n_train + n_calibrate) :]
-    y_validate = y[(n_train + n_calibrate) :]
+    x_calibrate = x[n_train:(n_train + n_calibrate)]
+    y_calibrate = y[n_train:(n_train + n_calibrate)]
+    x_validate = x[(n_train + n_calibrate):]
+    y_validate = y[(n_train + n_calibrate):]
 
     # Fit the classifier
     model = transport_calibration.TransportCalibration_XGBClassifier().fit(

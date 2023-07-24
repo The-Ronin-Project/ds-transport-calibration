@@ -142,7 +142,7 @@ class TransportCalibration:
         if bad_inds.shape[0] != 0:
             # Set offending values to machine-precision small positive value > 0
             class_probability[bad_inds] = numpy.finfo(float).resolution
-            print(f"Warning: class_probability had zeros, fixed it")
+            print("Warning: class_probability had zeros, fixed it")
 
         # Renormalize if needed
         if class_probability.sum() != 1:

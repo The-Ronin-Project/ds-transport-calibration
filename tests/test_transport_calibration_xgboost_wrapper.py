@@ -1,5 +1,4 @@
 import unittest
-import numpy
 from tests import transport_calibration_xgboost_wrapper_testing_utils
 
 
