@@ -49,10 +49,10 @@ def run_e2e(
     # Split the datasets
     x_train = x[0:n_train]
     y_train = y[0:n_train]
-    x_calibrate = x[n_train:(n_train + n_calibrate)]
-    y_calibrate = y[n_train:(n_train + n_calibrate)]
-    x_validate = x[(n_train + n_calibrate):]
-    y_validate = y[(n_train + n_calibrate):]
+    x_calibrate = x[n_train : (n_train + n_calibrate)]
+    y_calibrate = y[n_train : (n_train + n_calibrate)]
+    x_validate = x[(n_train + n_calibrate) :]
+    y_validate = y[(n_train + n_calibrate) :]
 
     # Fit the classifier
     if model_type == "logistic":
@@ -227,14 +227,14 @@ def stratified_sample_on_label(class_probability, x, y, n_samples):
 
         # Select the desired quantity of examples
         try:
-            class_inds.append(temp_inds[0:nclassex[c]])
+            class_inds.append(temp_inds[0 : nclassex[c]])
         except IndexError:
             raise ValueError(
                 f"Not enough examples of class {c} to extract a subset of size {n_samples}"
             )
 
         # Count the number of examples for tracking the actuals
-        actual_class_count.append(len(temp_inds[0:nclassex[c]]))
+        actual_class_count.append(len(temp_inds[0 : nclassex[c]]))
     class_inds = numpy.concatenate(class_inds)
 
     # Measure the actually realized class fractions as a sanity check
