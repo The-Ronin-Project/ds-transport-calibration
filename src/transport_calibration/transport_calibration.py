@@ -10,13 +10,15 @@ class TransportCalibration:
         """Initialize the calibration adjustment
 
         raw_pred -- numpy array containing the model-score vectors with shape (N,C) (N-number of examples, C-number of classes)
-        labels -- numpy array of length N containing an integer from 0 to C-1 corresponding to the label for each row of 'raw_pred'
+        labels -- numpy array of length N containing an integer 0 to C-1 indicating the label for each row of 'raw_pred'
         training_class_probability -- a numpy array of length C containing the class probability in the training data
-        ratio_estimator -- parameter indicating which density estimator to use: 'histogram' only works for binary classification, 'logistic' for any dimensionality
+        ratio_estimator -- string indicating which density estimator to use:
+                           'histogram' only works for binary classification
+                           'logistic' for any dimensionality
 
         Note: for binary classification, this class accepts simplified array shapes a follows:
             raw_pred may be shape (N,) and then the score is assumed to correspond to C=1 (the positive class)
-            training_class_probability may be shape (1,) or it may be a scalar float. That value is assumed to correspond to C=1.
+            training_class_probability may be shape (1,) or it may be a scalar float. The value corresponds to C=1
 
         """
         # Check inputs and reshape as necessary
@@ -25,10 +27,10 @@ class TransportCalibration:
             and len(training_class_probability.shape) == 1
             and training_class_probability.shape[0] == 1
         ):
-            # For binary classification this is allowed: temporarily replace the value so that it will get adjusted in the next check
+            # Allowed for binary classification: temporarily replace the value so that it will get adjusted in the next check
             training_class_probability = float(training_class_probability[0])
         if isinstance(training_class_probability, float):
-            # For binary classification this is allowed: adjust the value and shape to be consistent with a multi-class input
+            # Allowed for binary classification: adjust the value and shape to be consistent with a multi-class input
             training_class_probability = numpy.asarray(
                 [1 - training_class_probability, training_class_probability]
             )
@@ -150,13 +152,13 @@ class TransportCalibration:
             print(f"Renormalized class probability = {class_probability}")
         return class_probability
 
-    def calibrated_probability(self, scores, class_probability):
+    def calibrated_probability(self, scores, class_probability):  # noqa: C901
         """Compute P'(Y=c | R) ie. the posterior probability, for a domain with prior class_probability, that Y is class c
 
-        scores -- numpy array containing the model-scores to be adjusted with shape (N,C) (N-number of examples, C-number of classes)
+        scores -- numpy array containing the raw model-scores with shape (N,C) (N-number of examples, C-number of classes)
         class_probability -- a numpy array of length C containing the average class-probability in the target domain
 
-        Note: class_probability may not contain values less than or EQUAL to zero. These will be automatically adjusted if found.
+        Note: class_probability values must be greater than zero. Invalid values are automatically adjusted and renormalized
 
         Note: for binary classification, this class accepts simplified array shapes a follows:
             scores may be shape (N,) and then the score is assumed to correspond to C=1 (the positive class)
@@ -175,7 +177,7 @@ class TransportCalibration:
                 if scores.shape is (N,) then output will have shape (N,), and each value will be the C=1 value
                 if scores is float then the output will be float, and will be the C=1 value
         """
-        # Define default output flags (these control the shape of the output according to the input, as discussed in the docstring)
+        # Define default output flags which control the shape of the output according to the input (see the docstring)
         scalar_output = False
         flatten_output = False
         slice_class_1_output = False
@@ -208,10 +210,10 @@ class TransportCalibration:
                 and len(class_probability.shape) == 1
                 and class_probability.shape[0] == 1
             ):
-                # For binary classification this is allowed: temporarily replace the value so that it will get adjusted in the next check
+                # Allowed for binary classification: temporarily replace value so that it will get adjusted in the next check
                 class_probability = float(class_probability[0])
             if isinstance(class_probability, float):
-                # For binary classification this is allowed: adjust the value and shape to be consistent with a multi-class input
+                # Allowed for binary classification: adjust the value and shape to be consistent with a multi-class input
                 class_probability = numpy.asarray(
                     [1 - class_probability, class_probability]
                 )
@@ -274,7 +276,7 @@ class TransportCalibration:
                 axis=1,
             )
         elif self.ratio_estimator == "logistic":
-            # Precompute the density ratios: output has N rows for each of the N examples in 'scores' and C columns for each of the classes
+            # Precompute the density ratios: output has N rows to cover each example in 'scores' and C columns for the classes
             density_ratios = self._ratios(shaped_scores)
 
             # Precompute the class probability ratio differences (a CxC matrix)
@@ -287,16 +289,18 @@ class TransportCalibration:
                             / self.training_class_probability[c]
                         )
 
-            # Evaluate the sum in the denominator for each of the classes: output has N rows for each of the N examples in 'scores' and C columns for each of the classes
+            # Evaluate the sum in the denominator for each class
             denom_sum = []
             for c in range(self.n_classes):
                 denom_sum.append(numpy.sum(w[c, :] * density_ratios, axis=1))
+
+            # Output has N rows to cover each example in 'scores' and C columns for each of the class
             denom_sum = numpy.asarray(denom_sum).transpose()
 
             # Assemble the rest of the denominator
             denom = 1 + self.training_class_probability.reshape(1, -1) * denom_sum
 
-            # Evaluate the posterior probability: output has N rows for each of the N examples in 'scores' and C columns for each of the classes
+            # Compute calibrated probability: output has N rows to cover each example in 'scores' and C columns for the classes
             posterior_probability = (
                 density_ratios * self.training_class_probability.reshape(1, -1) / denom
             )

@@ -14,9 +14,12 @@ def run_xgb_wrapper_with_shap(
     n_validate=10000,
     make_pdfs=False,
 ):
-    """Do an end-to-end test run on simulated data: simulate, fit a classifier, resample to a new target domain, calibrate, validate, compute shap
+    """Do an end-to-end test run on simulated data
+    Simulate, fit a classifier, resample to a new target domain, calibrate, validate, compute SHAP
 
-    ratio_estimator -- parameter indicating which density estimator to use: 'histogram' only works for binary classification, 'logistic' for any dimensionality
+    ratio_estimator -- string indicating which density estimator to use:
+                       'histogram' only works for binary classification
+                       'logistic' for any dimensionality
     n_train -- number of samples to generate for training the classifier
     n_calibrate -- number of samples to generate for training the calibrator
     n_validate -- number of samples to generate for computing the validation statistics
@@ -66,7 +69,7 @@ def run_xgb_wrapper_with_shap(
         ratio_estimator=ratio_estimator,
     )
 
-    # Construct Shapley explainer: using fast tree method, but does not understand calibration, so shap values are on uncalibrated probability
+    # Construct Shapley explainer: using fast tree method, but shap values are on uncalibrated probability
     tree_explainer = shap.TreeExplainer(
         model,
         data=x_calibrate[0:1000],

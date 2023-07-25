@@ -6,7 +6,7 @@ import xgboost
 from src import transport_calibration
 
 
-def run_e2e(
+def run_e2e(  # noqa: C901
     n_classes,
     model_type,
     ratio_estimator="logistic",
@@ -14,17 +14,20 @@ def run_e2e(
     n_calibrate=3000,
     n_validate=10000,
 ):
-    """Do an end-to-end test run on simulated data: simulate, fit a classifier, resample to a new target domain, calibrate, validate on some simple metrics
+    """End-to-end test run on simulated data
+    Simulate, fit a classifier, resample to a new target domain, calibrate, validate on some simple metrics
 
     n_classes -- number of classes to generate
     model_type -- type of model to use for the classifier, must be in ('logistic', 'xgboost')
-    ratio_estimator -- parameter indicating which density estimator to use: 'histogram' only works for binary classification, 'logistic' for any dimensionality
+    ratio_estimator -- string indicating which density estimator to use:
+                       'histogram' only works for binary classification
+                       'logistic' for any dimensionality
     n_train -- number of samples to generate for training the classifier
     n_calibrate -- number of samples to generate for training the calibrator
     n_validate -- number of samples to generate for computing the validation statistics
 
-    Note: to make this function simple, we do not give access to parameters to configure the dataset generator. The defaults should be fine
-    for common values of n_classes and number of samples.
+    Note: to make this function simple, there is no way to pass parameters to the simulator.
+    The defaults should be fine for common values of n_classes and number of samples.
 
     """
     # Check inputs
@@ -76,7 +79,7 @@ def run_e2e(
         ratio_estimator=ratio_estimator,
     )
 
-    # For binary classification, the calibrator supports simplified input shapes, so repeat with simplified input shapes to test that logic
+    # For binary classification, the calibrator supports simplified input shapes, so repeat tests with alternate shapes
     if n_classes == 2:
         # Allocate storage for these additional test objects
         alt_objs = []
@@ -140,7 +143,7 @@ def run_e2e(
         y_validate_predicted, class_probability
     )
 
-    # For binary classification, the calibrator supports simplified input shapes, so repeat with simplified input shapes to test that logic
+    # For binary classification, the calibrator supports simplified input shapes, so repeat tests with alternate shapes
     if n_classes == 2:
         # Allocate storate for additional calibration results
         alt_outputs = []

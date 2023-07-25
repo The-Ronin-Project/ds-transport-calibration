@@ -62,8 +62,11 @@ class TransportCalibration_XGBClassifier(xgboost.XGBClassifier):
 
         training_features -- numpy array of shape (N,F) where N is the number of rows and F is the number of features
         training_labels -- numpy array of shape (N,) containing an integer class label from 0 to C-1 for each of the C classes
-        training_class_probability -- a numpy array of shape (C,) containing the class prevalence, if None then compute it from the training_labels
-        ratio_estimator -- parameter indicating which density estimator to use: 'histogram' only works for binary classification, 'logistic' for any dimensionality
+        training_class_probability -- a numpy array of shape (C,) containing the class prevalence
+                                      if None then compute it from the training_labels
+        ratio_estimator -- string indicating which density estimator to use:
+                           'histogram' only works for binary classification
+                           'logistic' for any dimensionality
 
         if ratio_estimator is None, then automatically use 'histogram' for binary classification and 'logistic' for multi-class
 
@@ -122,11 +125,10 @@ class TransportCalibration_XGBClassifier(xgboost.XGBClassifier):
             )
         )
 
-    def predict_proba(self, features, class_probability=None):
+    def predict_proba(self, features):
         """Predict the calibrated probability
 
         features -- numpy array of shape (N,F) where N is the number of rows and F is the number of features
-        class_probability -- a numpy array of shape (C,) containing the class prevalence in the target domain- if None then use value from training domain
 
         """
         # Check that the object is initialized for calibrated outputs
