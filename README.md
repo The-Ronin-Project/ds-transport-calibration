@@ -15,14 +15,17 @@ pip install ds-transport-calibration
 ## Usage of XGBoost wrapper
 
 This library provides a wrapper around [xgboost.XGBClassifier](https://xgboost.readthedocs.io/en/stable/python/python_api.html#xgboost.XGBClassifier)
-which allows seamless usage of transport calibration with the sklearn api and XGBoost.
+which allows seamless usage of transport calibration with the sklearn API and XGBoost.
 
-The wrapper overloads predict_proba(...) so that it computes calibrated probabilities.
+The wrapper overloads predict_proba(...) so that it computes calibrated probabilities. And it provides access to the uncalibrated probabilities
+via the method transport_calibration_predict_proba_uncalibrated(...)
 
 The wrapper is compatible with [shap](https://shap.readthedocs.io/en/latest/index.html), but the [tree explainer](https://shap.readthedocs.io/en/latest/generated/shap.explainers.Tree.html) will use uncalibrated probabilities
 because it computes the probability using a fast internal implementation that short-circuits predict_proba.
 Alternatively, it is possible to use a universal explainer, like [permutation](https://shap.readthedocs.io/en/latest/generated/shap.explainers.Permutation.html), 
 in order to compute shap values on calibrated scores.
+
+Here is example code to train a model, train the calibrator, and evaluate uncalibrated and calibrated probabilities.
 
 ```python
 import numpy
@@ -50,7 +53,7 @@ uncalibrated_predictions = model.transport_calibration_predict_proba_uncalibrate
 # IMPORTANT: set the internal value of the class probability to the background value for the target domain before computing calibrated probabilities
 model.transport_calibration_class_probability = class_probability
 
-# Or, if the class probability is the same as the training domain then it can be automatically set by doing this instead
+# Or, if the class probability is the same as the training domain then it can be automatically computed by setting this value to None
 model.transport_calibration_class_probability = None
 
 # Compute calibrated probabilities
@@ -62,7 +65,7 @@ calibrated_predictions = model.predict_proba(x_test)
 For non-XGBoost applications, users may use the base calibrator object.
 
 To train it, first compute probabilities from your model and store them in
-an (N,C) numpy array, where N is the number of examples and C is the number of classes. Then fit the calibrator by
+an (N,C) numpy array (called model_scores here), where N is the number of examples and C is the number of classes. Then fit the calibrator by
 ```python
 import transport_calibration
 
@@ -86,7 +89,7 @@ calibrator's constructor.
 Typically, 'histogram' should be used for binary classification and 'logistic' should be used for multi-class.
 
 Input/Output shapes: the generic calibrator object accepts a variety of input shapes for convenient usage. The output shape is determined so that it
-is consistent with the input shape. See the docstring of the calibrated_probability(...) method for more details.
+is consistent with the input shape. See the docstring of the [calibrated_probability(...)](./src/transport_calibration/transport_calibration.py#L155) method for more details.
 
 ## Contributing
 
