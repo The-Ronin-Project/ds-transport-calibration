@@ -1,5 +1,5 @@
-numpy
-shap
+numpy==1.23.5
+shap==0.41.0
 xgboost
-matplotlib
-scikit-learn
+matplotlib==3.6.3
+scikit-learn==1.2.2
