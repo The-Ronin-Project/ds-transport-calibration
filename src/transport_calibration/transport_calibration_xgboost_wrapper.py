@@ -1,3 +1,4 @@
+import warnings
 import numpy
 from . import transport_calibration
 import xgboost
@@ -73,8 +74,8 @@ class TransportCalibration_XGBClassifier(xgboost.XGBClassifier):
         """
         # Check state
         if self._transport_calibration_calibrator is not None:
-            print(
-                "Warning- calibrator is already trained- now retraining and overwriting"
+            warnings.warn(
+                "Calibrator is already trained- now retraining and overwriting"
             )
 
         # Determine the number of classes from the parent class
