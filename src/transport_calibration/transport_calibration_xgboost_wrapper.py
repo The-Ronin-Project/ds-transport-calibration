@@ -13,13 +13,10 @@ except ImportError:
 
 class TransportCalibration_XGBClassifier(xgboost.XGBClassifier):
     def __init__(self, *, objective: _SklObjective = "binary:logistic", **kwargs):
+        self._automatically_fit_calibrator_at_model_fit = kwargs.pop("automatically_fit_calibrator_at_model_fit", False)
         super().__init__(objective=objective, **kwargs)
         self._transport_calibration_calibrator = None
         self._transport_calibration_class_probability = None
-        self._automatically_fit_calibrator_at_model_fit = False
-        if "automatically_fit_calibrator_at_model_fit" in kwargs.keys():
-            if kwargs["automatically_fit_calibrator_at_model_fit"] is True:
-                self._automatically_fit_calibrator_at_model_fit = True
 
     def transport_calibration_predict_proba_uncalibrated(self, *args, **kwargs):
         """Access to uncalibrated version of predict_proba"""
