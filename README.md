@@ -60,10 +60,12 @@ model.transport_calibration_class_probability = None
 calibrated_predictions = model.predict_proba(x_test)
 ```
 
-### Fitting classifier and calibrator in a single call to fit
+### Fitting classifier and calibrator in a single call
 
-In some situations it might be convenient to be able to construct a model object with both the classifier and calibrator trained by
-a single call to fit. This might be useful, for example, when using a cross-validation method that repeatedly fits and tests the model.
+In some situations it might be convenient to be able to construct a model
+object with both the classifier and calibrator trained by a single call to the
+fit method. This might be useful, for example, when using a cross-validation
+method that repeatedly fits and tests the model.
 
 To accomplish this, instantiate the model using an additional parameter to activate this auto-fitting mode.
 
