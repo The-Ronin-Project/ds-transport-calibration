@@ -1,82 +1,8 @@
-# Python Package Template
+# Transport Calibration
 
 [![github](https://github.com/projectronin/ronin-blueprint-python-lib/actions/workflows/release.yaml/badge.svg)](https://github.com/projectronin/ronin-blueprint-python-lib/actions/workflows/release.yaml)
 [![github](https://github.com/projectronin/ronin-blueprint-python-lib/actions/workflows/main.yaml/badge.svg)](https://github.com/projectronin/ronin-blueprint-python-lib/actions/workflows/main.yaml)
 [![codecov](https://codecov.io/gh/projectronin/ronin-blueprint-python-lib/branch/main/graph/badge.svg?token=z6l3Vet7N6)](https://codecov.io/gh/projectronin/ronin-blueprint-python-lib)
-
-Use this template to bootstrap a Python library at Project Ronin.
-
----
-
-## Getting Started Guide
-
-### Step 1: Create a Repository using this Template
-
-To begin, create a new repository using this template
-following [this guide](https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-repository-from-a-template)
-from GitHub.
-
-Please use the following naming convention when naming the new repository on GitHub.
-
-`{TEAM}-lib-{NAME}`
-
-- `{TEAM}` signals the owner of this repository.
-  [This article](https://projectronin.atlassian.net/wiki/spaces/ENG/pages/1649410056/GitHub+Guidelines) provides
-  additional information on team abbreviation conventions.
-- `lib` signals that this is a library distributed as a package.
-- `{NAME}` should provide relevant context to the intent of this project.
-
-For example:
-
-- `infx-lib-awesome-client` (Informatics / Library / Awesome Client)
-- `ds-lib-super-duper-model` (Data Science / Library / Super Duper Model)
-- `dp-lib-mind-blowing-util` (Data Platform / Library / Mind Blowing Utility)
-
-### Step 2: Update the Package Name
-
-Next, update all references to `ds-transport-calibration` and `ds_transport_calibration` with your package name (`{NAME}`) using the established
-casing conventions.
-
-For example:
-
-- `awesome-client`, `awesome_client`
-- `super-duper-model`, `super_duper_model`
-- `mind-blowing-util`, `mind_blowing_util`
-
-### Step 3: Set Branch Protection Rules
-
-Follow [this guide](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/defining-the-mergeability-of-pull-requests/managing-a-branch-protection-rule#creating-a-branch-protection-rule)
-to go to the settings for branch protection rules.
-
-Click "Add rule."
-
-Set the "Branch name pattern" to *main*.
-
-Enable "Require a pull request before merging."
-
-Enable "Require approvals."
-
-Set "Required number of approvals before merging" to *1*.
-
-Enable "Require status checks to pass before merging."
-
-### Step 4: Set up [codecov.io](codecov.io)
-
-Retrieve the repository upload token from [codecov.io](codecov.io) for your new repository
-using [this guide](https://docs.codecov.com/docs/codecov-uploader#upload-token).
-
-Then, create a new action secret for your new repository token named `CODECOV_TOKEN`
-using [this guide](https://docs.github.com/en/actions/security-guides/encrypted-secrets#creating-encrypted-secrets-for-a-repository)
-. Set the value to the repository upload token from [codecov.io](codecov.io).
-
-Test this setting by triggering the `main` GitHub Action for your new repository
-using [this guide](https://docs.github.com/en/actions/managing-workflow-runs/manually-running-a-workflow). Next, check
-the `coverage` step to verify that the coverage upload to [codecov.io](codecov.io) is successful.
-
-### Step 5: Cleanup
-
-Once complete, please delete this section ([Getting Started Guide](#getting-started-guide)) of the README.md from your
-new repository. Then reference [CONTRIBUTING.md](CONTRIBUTING.md) for next steps.
 
 ---
 
@@ -86,15 +12,84 @@ new repository. Then reference [CONTRIBUTING.md](CONTRIBUTING.md) for next steps
 pip install ds-transport-calibration
 ```
 
-## Usage
+## Usage of XGBoost wrapper
+
+This library provides a wrapper around [xgboost.XGBClassifier](https://xgboost.readthedocs.io/en/stable/python/python_api.html#xgboost.XGBClassifier)
+which allows seamless usage of transport calibration with the sklearn API and XGBoost.
+
+The wrapper overloads predict_proba(...) so that it computes calibrated probabilities. And it provides access to the uncalibrated probabilities
+via the method transport_calibration_predict_proba_uncalibrated(...)
+
+The wrapper is compatible with [shap](https://shap.readthedocs.io/en/latest/index.html), but the [tree explainer](https://shap.readthedocs.io/en/latest/generated/shap.explainers.Tree.html) will use uncalibrated probabilities
+because it computes the probability using a fast internal implementation that short-circuits predict_proba.
+Alternatively, it is possible to use a universal explainer, like [permutation](https://shap.readthedocs.io/en/latest/generated/shap.explainers.Permutation.html), 
+in order to compute shap values on calibrated scores.
+
+Here is example code to train a model, train the calibrator, and evaluate uncalibrated and calibrated probabilities.
 
 ```python
-from ds_transport_calibration import say_hello
+import numpy
+import shap
+import transport_calibration
 
-msg = say_hello("World")
+# Fit the classifier
+model = transport_calibration.TransportCalibration_XGBClassifier().fit(x_train, y_train)
 
-print(msg)
+# Define array with class prevalence in training domain
+training_class_probability = numpy.asarray([1/n_classes]*n_classes)
+
+# Fit the calibrator
+model.transport_calibration_fit(x_calibrate, y_calibrate, training_class_probability=training_class_probability)
+
+# Construct Shapley explainer: using fast tree method, but does not understand calibration, so shap values are on uncalibrated probability
+tree_explainer = shap.TreeExplainer(model, data=x_calibrate[0:1000], model_output='predict_proba', feature_perturbation='interventional')
+
+# Construct Shapley explainer: using generic method, slower, but shap values are on calibrated probability
+perm_explainer = shap.PermutationExplainer(model.predict_proba, x_calibrate[0:100])
+
+# Compute uncalibrated probabilities
+uncalibrated_predictions = model.transport_calibration_predict_proba_uncalibrated(x_test)
+
+# IMPORTANT: set the internal value of the class probability to the background value for the target domain before computing calibrated probabilities
+model.transport_calibration_class_probability = class_probability
+
+# Or, if the class probability is the same as the training domain then it can be automatically computed by setting this value to None
+model.transport_calibration_class_probability = None
+
+# Compute calibrated probabilities
+calibrated_predictions = model.predict_proba(x_test)
 ```
+
+## Usage of generic calibrator
+
+For non-XGBoost applications, users may use the base calibrator object.
+
+To train it, first compute probabilities from your model and store them in
+an (N,C) numpy array (called model_scores here), where N is the number of examples and C is the number of classes. Then fit the calibrator by
+```python
+import transport_calibration
+
+# Fit the calibrator
+calibrator = transport_calibration.TransportCalibration(model_scores, y_labels, training_class_probability)
+```
+
+After the calibrator is fit, compute calibrated scores by
+```python
+# Compute calibrated probability
+model_scores_calibrated = calibrator.calibrated_probability(model_scores, class_probability)
+```
+
+The class_probability is a numpy array containing the background class probability in the target domain.
+
+## Advanced settings
+
+Ratio estimator: when fitting a calibrator, it is possible to specify the internal algorithm to use for density estimates. This is
+accomplished by passing ratio_estimator='logistic' or ratio_estimator='histogram' to the XGB wrapper's fit function or the generic
+calibrator's constructor.
+Typically, 'histogram' should be used for binary classification and 'logistic' should be used for multi-class.
+
+Input/Output shapes: the generic calibrator object accepts a variety of input shapes for convenient usage. The output shape is determined so that it
+is consistent with the input shape. See the docstring of the [calibrated_probability(...)](./src/transport_calibration/transport_calibration.py#L155) method for more details.
 
 ## Contributing
 
