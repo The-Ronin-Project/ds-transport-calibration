@@ -12,6 +12,7 @@ def run_xgb_wrapper_with_shap(
     n_train=20000,
     n_calibrate=3000,
     n_validate=10000,
+    test_automatic_fit=False,
     make_pdfs=False,
 ):
     """Do an end-to-end test run on simulated data
@@ -23,6 +24,7 @@ def run_xgb_wrapper_with_shap(
     n_train -- number of samples to generate for training the classifier
     n_calibrate -- number of samples to generate for training the calibrator
     n_validate -- number of samples to generate for computing the validation statistics
+    test_automatic_fit -- if True then test the automatic calibrator fitting functionality
     make_pdfs -- if True then write some example shap plots to PDF files
 
     """
@@ -53,21 +55,28 @@ def run_xgb_wrapper_with_shap(
     x_validate = x[(n_train + n_calibrate) :]
     y_validate = y[(n_train + n_calibrate) :]
 
-    # Fit the classifier
-    model = transport_calibration.TransportCalibration_XGBClassifier().fit(
-        x_train, y_train
-    )
+    # Select the fitting process
+    if test_automatic_fit:
+        # Fit the classifier and calibrator in a single call
+        model = transport_calibration.TransportCalibration_XGBClassifier(automatically_fit_calibrator_at_model_fit=True).fit(
+            x_train, y_train
+        )
+    else:
+        # Fit the classifier
+        model = transport_calibration.TransportCalibration_XGBClassifier().fit(
+            x_train, y_train
+        )
 
-    # Training domain had uniform class prevalence
-    training_class_probability = numpy.asarray([1 / n_classes] * n_classes)
+        # Training domain had uniform class prevalence
+        training_class_probability = numpy.asarray([1 / n_classes] * n_classes)
 
-    # Fit the calibrator
-    model.transport_calibration_fit(
-        x_calibrate,
-        y_calibrate,
-        training_class_probability=training_class_probability,
-        ratio_estimator=ratio_estimator,
-    )
+        # Fit the calibrator
+        model.transport_calibration_fit(
+            x_calibrate,
+            y_calibrate,
+            training_class_probability=training_class_probability,
+            ratio_estimator=ratio_estimator,
+        )
 
     # Construct Shapley explainer: using fast tree method, but shap values are on uncalibrated probability
     tree_explainer = shap.TreeExplainer(
