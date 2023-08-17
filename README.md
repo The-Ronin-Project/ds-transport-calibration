@@ -60,6 +60,27 @@ model.transport_calibration_class_probability = None
 calibrated_predictions = model.predict_proba(x_test)
 ```
 
+### Fitting classifier and calibrator in a single call to fit
+
+In some situations it might be convenient to be able to construct a model object with both the classifier and calibrator trained by
+a single call to fit. This might be useful, for example, when using a cross-validation method that repeatedly fits and tests the model.
+
+To accomplish this, instantiate the model using an additional parameter to activate this auto-fitting mode.
+
+```
+model = transport_calibration.TransportCalibration_XGBClassifier(automatically_fit_calibrator_at_model_fit=True)
+```
+
+Then, a call to the model.fit(...) method will automatically fit the calibrator
+with the same training data, after first fitting the classifier in the standard
+way using that training data.
+
+Note, this could produce unwanted results if the classifier-fit obliterates the
+training data- meaning that the classifier's prediction on all the training
+samples is nearly exactly 0 or 1 for the probability of the correct class. This
+can happen on data that is very clean, where XGBoost is able to model the
+training set with essentially no error.
+
 ## Usage of generic calibrator
 
 For non-XGBoost applications, users may use the base calibrator object.
