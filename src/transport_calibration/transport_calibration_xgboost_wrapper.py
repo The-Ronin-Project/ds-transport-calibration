@@ -37,6 +37,11 @@ class TransportCalibration_XGBClassifier(xgboost.XGBClassifier):
         return self
 
     @property
+    def estimator(self):
+        """Make this class compatible as a drop-in replacement to CalibratedClassiferCV from sklearn"""
+        return self
+
+    @property
     def transport_calibration_class_probability(self):
         """The prevalence of each class in the target domain"""
         return self._transport_calibration_class_probability
