@@ -3,41 +3,29 @@ import sklearn
 import sklearn.linear_model
 
 
-class TransportCalibration:
-    def __init__(
-        self, raw_pred, labels, training_class_probability, ratio_estimator="logistic"
-    ):
+class TransportCalibrationOneCov:
+    def __init__(self, raw_pred, labels, xvals, labels_prime, xvals_prime):
         """Initialize the calibration adjustment
 
         raw_pred -- numpy array containing the model-score vectors with shape (N,C) (N-number of examples, C-number of classes)
         labels -- numpy array of length N containing an integer 0 to C-1 indicating the label for each row of 'raw_pred'
-        training_class_probability -- a numpy array of length C containing the class probability in the training data
-        ratio_estimator -- string indicating which density estimator to use:
-                           'histogram' only works for binary classification
-                           'logistic' for any dimensionality
+        xvals -- numpy array of length N containing a float value for X at each example
+        labels_prime -- numpy array of length M containing labels in the primed domain
+        xvals_prime -- numpy array of length M containing a float value for X at each example in the primed domain
+
+        Note: the labels array must include some examples of every class
 
         Note: for binary classification, this class accepts simplified array shapes as follows:
             raw_pred may be shape (N,) and then the score is assumed to correspond to C=1 (the positive class)
-            training_class_probability may be shape (1,) or it may be a scalar float. The value corresponds to C=1
 
         """
         # Check inputs and reshape as necessary
-        if (
-            isinstance(training_class_probability, numpy.ndarray)
-            and len(training_class_probability.shape) == 1
-            and training_class_probability.shape[0] == 1
-        ):
-            # Allowed for binary classification: temporarily replace the value so that it will get adjusted in the next check
-            training_class_probability = float(training_class_probability[0])
-        if isinstance(training_class_probability, float):
-            # Allowed for binary classification: adjust the value and shape to be consistent with a multi-class input
-            training_class_probability = numpy.asarray(
-                [1 - training_class_probability, training_class_probability]
-            )
         if not (
             isinstance(raw_pred, numpy.ndarray)
             and isinstance(labels, numpy.ndarray)
-            and isinstance(training_class_probability, numpy.ndarray)
+            and isinstance(xvals, numpy.ndarray)
+            and isinstance(labels_prime, numpy.ndarray)
+            and isinstance(xvals_prime, numpy.ndarray)
         ):
             raise ValueError("Input values must be numpy arrays.")
         if len(raw_pred.shape) == 1 or raw_pred.shape[1] == 1:
@@ -46,123 +34,41 @@ class TransportCalibration:
                 [1 - raw_pred.reshape(-1, 1), raw_pred.reshape(-1, 1)], axis=1
             )
 
-        # Repair class_probability if it contains any exactly 0 or negative values
-        training_class_probability = self._repair_class_probability(
-            training_class_probability
-        )
-
-        # Store the prevalence of classes in training data
-        self._training_class_probability = numpy.asarray(
-            training_class_probability
-        ).flatten()
-
         # Store the number of classes
-        self._n_classes = len(self.training_class_probability)
+        unique_labels = numpy.unique(labels)
+        unique_labels_prime = numpy.unique(labels_prime)
+        max_label = max(unique_labels)
+        max_label_prime = max(unique_labels_prime)
+        len_unique = len(unique_labels)
+        len_unique_prime = len(unique_labels_prime)
+        if len_unique != max_label + 1:
+            raise ValueError(f"Seems like some label examples are missing: max label = {max_label}, length = {len_unique}")
+        if len_unique_prime != max_label_prime + 1:
+            raise ValueError(f"Seems like some label_prime examples are missing: max label = {max_label_prime}, length = {len_unique_prime}")
+        if len_unique != len_unique_prime:
+            raise ValueError(f"Inconsistent number of labels between domains: {len_unique} vs. {len_unique_prime} in primed domain")
+        self._n_classes = len_unique
 
-        # Store which type of estimator to use for the ratio of densities
-        if ratio_estimator not in ("logistic", "histogram"):
-            raise ValueError(
-                f"Invalid input for ratio_estimator parameter = {ratio_estimator}"
-            )
-        if ratio_estimator == "histogram" and self.n_classes != 2:
-            raise ValueError(
-                "The histogram estimator only works for binary classification."
-            )
-        self._ratio_estimator = ratio_estimator
+        # Construct logistic regression models needed for computing density ratios
+        self._PY_RX = sklearn.linear_model.LogisticRegression().fit(numpy.concatenate([raw_pred, xvals], axis=1), labels)
+        self._PY_X = sklearn.linear_model.LogisticRegression().fit(xvals, labels)
+        self._PY_X_prime = sklearn.linear_model.LogisticRegression().fit(xvals_prime, labels_prime)
 
-        # Construct an estimate of the ratio of distributions
-        if self.ratio_estimator == "logistic":
-            # Construct a direct estimate of ratio of distributions for each class by fitting a Logistic regression
-            self._logistic_model = sklearn.linear_model.LogisticRegression().fit(
-                raw_pred, labels
-            )
-            self._ratios = (
-                lambda r, lr_model=self._logistic_model, tcp=self.training_class_probability: lr_model.predict_proba(
-                    r
-                )
-                / tcp
-            )
-        elif self.ratio_estimator == "histogram":
-            # Construct initial version of histograms to estimate ratio of densities
-            P_R = numpy.histogram(raw_pred[:, 1].flatten(), bins="auto", density=False)
-            P_R_Y1 = numpy.histogram(
-                raw_pred[:, 1].flatten()[numpy.where(labels == 1)],
-                bins=P_R[1],
-                density=False,
-            )
-
-            # Remove bins with zeros and recompute the histograms in order to avoid dividing by zero in the ratio
-            zero_bins = numpy.where(P_R_Y1[0] == 0)[0]
-            nonzero_bins = numpy.delete(P_R_Y1[1], zero_bins)
-            P_R = numpy.histogram(
-                raw_pred[:, 1].flatten(), bins=nonzero_bins, density=False
-            )
-            P_R_Y1 = numpy.histogram(
-                raw_pred[:, 1].flatten()[numpy.where(labels == 1)],
-                bins=nonzero_bins,
-                density=False,
-            )
-
-            # Store data needed for interpolating a value from the ratio of densities
-            self._ratio_data = {}
-            P_Y1 = self.training_class_probability[1]
-            self._ratio_data["xp"] = P_R[1][0:-1]
-            self._ratio_data["fp"] = P_Y1 * P_R[0] / P_R_Y1[0]
-            self._ratio_data["left"] = P_Y1 * P_R[0][0] / P_R_Y1[0][0]
-            self._ratio_data["right"] = P_Y1 * P_R[0][-1] / P_R_Y1[0][-1]
-
-            # Assemble histograms into a ratio interpolator
-            self._ratio = lambda r, rd=self._ratio_data: numpy.interp(
-                r, rd["xp"], rd["fp"], rd["left"], rd["right"]
-            )
 
     @property
     def n_classes(self):
         """Number of classes that this calibrator was initialized for (immutable)"""
         return self._n_classes
 
-    @property
-    def ratio_estimator(self):
-        """Type of ratio estimator that will be used to compute calibrated values (immutable)"""
-        return self._ratio_estimator
 
-    @property
-    def training_class_probability(self):
-        """The prior probability from the training domain of the classifier (immutable)"""
-        return self._training_class_probability
-
-    def _repair_class_probability(self, class_probability):
-        """Repair the class probability so that it does not contain values less than or equal to zero
-
-        class_probability -- a numpy array of length C containing the average class-probability
-
-        """
-        # Find offending values
-        bad_inds = numpy.where(class_probability <= 0)[0]
-
-        # Repair them
-        if bad_inds.shape[0] != 0:
-            # Set offending values to machine-precision small positive value > 0
-            class_probability[bad_inds] = numpy.finfo(float).resolution
-            print("Warning: class_probability had zeros, fixed it")
-
-        # Renormalize if needed
-        if class_probability.sum() != 1:
-            class_probability = class_probability / class_probability.sum()
-            print(f"Renormalized class probability = {class_probability}")
-        return class_probability
-
-    def calibrated_probability(self, scores, class_probability):  # noqa: C901
-        """Compute P'(Y=c | R) ie. the posterior probability, for a domain with prior class_probability, that Y is class c
+    def calibrated_probability(self, scores, xvals):
+        """Compute P'(Y=c | R,X) ie. the posterior probability that Y is class c
 
         scores -- numpy array containing the raw model-scores with shape (N,C) (N-number of examples, C-number of classes)
-        class_probability -- a numpy array of length C containing the average class-probability in the target domain
-
-        Note: class_probability values must be greater than zero. Invalid values are automatically adjusted and renormalized
+        xvals -- numpy array containing the value of X for each example with shape (N,)
 
         Note: for binary classification, this class accepts simplified array shapes a follows:
             scores may be shape (N,) and then the score is assumed to correspond to C=1 (the positive class)
-            class_probability may be shape (1,) or it may be a scalar float. That value is assumed to correspond to C=1.
 
 
         Shape of the output depends on the shape of the input 'scores'
