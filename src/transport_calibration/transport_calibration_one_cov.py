@@ -47,9 +47,9 @@ class TransportCalibrationOneCov:
 
         # Construct logistic regression models needed for computing density ratios
         self._PY_RX = sklearn.linear_model.LogisticRegression().fit(
-            numpy.concatenate([raw_pred, xvals], axis=1), labels
+            numpy.concatenate([raw_pred, xvals.reshape(-1,1)], axis=1), labels
         )
-        self._PY_X = sklearn.linear_model.LogisticRegression().fit(xvals, labels)
+        self._PY_X = sklearn.linear_model.LogisticRegression().fit(xvals.reshape(-1,1), labels)
 
         # Process and store the primed distribution if data was provided or mark it as missing for now
         if isinstance(labels_primed, numpy.ndarray) and isinstance(
@@ -99,7 +99,7 @@ class TransportCalibrationOneCov:
 
         # Learn the distribution
         self._PY_X_primed = sklearn.linear_model.LogisticRegression().fit(
-            xvals_primed, labels_primed
+            xvals_primed.reshape(-1,1), labels_primed
         )
 
     def calibrated_probability(self, scores, xvals):
@@ -209,6 +209,7 @@ class TransportCalibrationOneCov:
                 # This is the scores.shape is (N,C) case mentioned in the docstring
                 shaped_scores = scores
                 shaped_xvals = xvals
+        shaped_xvals = shaped_xvals.reshape(-1,1)
 
         # Compute the density ratios: output has N rows to cover each example in 'scores' and C columns for the classes
         py_x = self._PY_X.predict_proba(shaped_xvals)
