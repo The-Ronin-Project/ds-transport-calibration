@@ -25,7 +25,7 @@ def run_e2e(  # noqa: C901
     n_train -- number of samples to generate for training the classifier
     n_calibrate -- number of samples to generate for training the calibrator
     n_validate -- number of samples to generate for computing the validation statistics
-    predefined_domain_param_set -- a string indicating the name of a set of pre-defined parameters 
+    predefined_domain_param_set -- a string indicating the name of a set of pre-defined parameters
                                    (see get_params_for_generating_domain_specific_feature(...) function below)
 
     Note: to make this function simple, there is no way to pass parameters to the simulator.
@@ -50,21 +50,23 @@ def run_e2e(  # noqa: C901
     )
 
     # Modify simulated data to have 1 domain-specific covariate
-    appended, appended_p = append_domain_specific_feature(x, y, get_params_for_generating_domain_specific_feature(predefined_domain_param_set))
+    appended, appended_p = append_domain_specific_feature(
+        x,
+        y,
+        get_params_for_generating_domain_specific_feature(predefined_domain_param_set),
+    )
 
     # Split the datasets in the unprimed domain
-    x_train = appended['x'][0:n_train]
-    y_train = appended['y'][0:n_train]
-    x_calibrate = appended['x'][n_train : (n_train + n_calibrate)]
-    y_calibrate = appended['y'][n_train : (n_train + n_calibrate)]
-    x_validate = appended['x'][(n_train + n_calibrate) :]
-    y_validate = appended['y'][(n_train + n_calibrate) :]
+    x_train = appended["x"][0:n_train]
+    y_train = appended["y"][0:n_train]
+    x_calibrate = appended["x"][n_train : (n_train + n_calibrate)]
+    y_calibrate = appended["y"][n_train : (n_train + n_calibrate)]
 
     # Split the calibration/validation sets in the target (ie. primed) domain
-    xp_calibrate = appended_p['x'][n_train : (n_train + n_calibrate)]
-    yp_calibrate = appended_p['y'][n_train : (n_train + n_calibrate)]
-    xp_validate = appended_p['x'][(n_train + n_calibrate) :]
-    yp_validate = appended_p['y'][(n_train + n_calibrate) :]
+    xp_calibrate = appended_p["x"][n_train : (n_train + n_calibrate)]
+    yp_calibrate = appended_p["y"][n_train : (n_train + n_calibrate)]
+    xp_validate = appended_p["x"][(n_train + n_calibrate) :]
+    yp_validate = appended_p["y"][(n_train + n_calibrate) :]
 
     # Fit the classifier
     if model_type == "logistic":
@@ -80,7 +82,7 @@ def run_e2e(  # noqa: C901
     alpha = float(rng.exponential(scale=expscale, size=1))
     class_probability = rng.dirichlet([alpha] * n_classes)
 
-    # Resample the data from the target domain to achieve this prevalence (factor of 4 may be adjusted if more or fewer samples are desired)
+    # Resample the data to achieve desired prevalence (factor of 4 may be adjusted if more or fewer samples are desired)
     target_domain_data_calibrate = stratified_sample_on_label(
         class_probability, xp_calibrate, yp_calibrate, n_calibrate // 4
     )
@@ -95,9 +97,9 @@ def run_e2e(  # noqa: C901
     calibrator = transport_calibration_one_cov.TransportCalibrationOneCov(
         y_calibrate_predicted,
         y_calibrate,
-        x_calibrate[:,-1].flatten(),
+        x_calibrate[:, -1].flatten(),
         labels_primed=target_domain_data_calibrate["y"],
-        xvals_primed=target_domain_data_calibrate["x"][:,-1].flatten(),
+        xvals_primed=target_domain_data_calibrate["x"][:, -1].flatten(),
     )
 
     # For binary classification, the calibrator supports simplified input shapes, so repeat tests with alternate shapes
@@ -110,9 +112,9 @@ def run_e2e(  # noqa: C901
             transport_calibration_one_cov.TransportCalibrationOneCov(
                 y_calibrate_predicted[:, 1].flatten(),
                 y_calibrate,
-                x_calibrate[:,-1].flatten(),
+                x_calibrate[:, -1].flatten(),
                 labels_primed=target_domain_data_calibrate["y"],
-                xvals_primed=target_domain_data_calibrate["x"][:,-1].flatten(),
+                xvals_primed=target_domain_data_calibrate["x"][:, -1].flatten(),
             )
         )
 
@@ -120,7 +122,7 @@ def run_e2e(  # noqa: C901
     y_validate_predicted = model.predict_proba(target_domain_data_validate["x"])
 
     # Calibrate those scores for the target domain
-    xvals_primed = target_domain_data_validate["x"][:,-1].flatten()
+    xvals_primed = target_domain_data_validate["x"][:, -1].flatten()
     y_validate_predicted_calibrated = calibrator.calibrated_probability(
         y_validate_predicted, xvals_primed
     )
@@ -160,7 +162,7 @@ def run_e2e(  # noqa: C901
 
 
 def get_params_for_generating_domain_specific_feature(name):
-    """ Return predefined parameter settings
+    """Return predefined parameter settings
 
     name -- the name of a predefined parameter set
 
@@ -168,40 +170,40 @@ def get_params_for_generating_domain_specific_feature(name):
 
     # Define parameter sets
     param_sets = {}
-    param_sets['c1'] = {}
-    param_sets['c1']['dist'] = 'normal'
-    param_sets['c1']['dist_params'] = (0.2, 1.3)
-    param_sets['c1']['dist_params_p'] = (0.2, 1.3)
-    param_sets['c1']['stick_prob_fn'] = lambda r: (r**1.7)/2
-    param_sets['c1']['stick_prob_fn_p'] = lambda r: (r**1.3)/2
-    param_sets['c1']['stick_up'] = True
-    param_sets['c1']['stick_up_p'] = False
-    param_sets['c2'] = {}
-    param_sets['c2']['dist'] = 'normal'
-    param_sets['c2']['dist_params'] = (0.2, 1.3)
-    param_sets['c2']['dist_params_p'] = (-0.2, 0.7)
-    param_sets['c2']['stick_prob_fn'] = lambda r: (r**1.7)/2
-    param_sets['c2']['stick_prob_fn_p'] = lambda r: (r**1.3)/2
-    param_sets['c2']['stick_up'] = True
-    param_sets['c2']['stick_up_p'] = False
-    param_sets['c3'] = {}
-    param_sets['c3']['dist'] = 'normal'
-    param_sets['c3']['dist_params'] = (0.2, 1.3)
-    param_sets['c3']['dist_params_p'] = (-0.2, 0.7)
-    param_sets['c3']['stick_prob_fn'] = lambda r: (r**1.7)/2
-    param_sets['c3']['stick_prob_fn_p'] = lambda r: (r**1.3)/2
-    param_sets['c3']['stick_up'] = False
-    param_sets['c3']['stick_up_p'] = True
+    param_sets["c1"] = {}
+    param_sets["c1"]["dist"] = "normal"
+    param_sets["c1"]["dist_params"] = (0.2, 1.3)
+    param_sets["c1"]["dist_params_p"] = (0.2, 1.3)
+    param_sets["c1"]["stick_prob_fn"] = lambda r: (r**1.7) / 2
+    param_sets["c1"]["stick_prob_fn_p"] = lambda r: (r**1.3) / 2
+    param_sets["c1"]["stick_up"] = True
+    param_sets["c1"]["stick_up_p"] = False
+    param_sets["c2"] = {}
+    param_sets["c2"]["dist"] = "normal"
+    param_sets["c2"]["dist_params"] = (0.2, 1.3)
+    param_sets["c2"]["dist_params_p"] = (-0.2, 0.7)
+    param_sets["c2"]["stick_prob_fn"] = lambda r: (r**1.7) / 2
+    param_sets["c2"]["stick_prob_fn_p"] = lambda r: (r**1.3) / 2
+    param_sets["c2"]["stick_up"] = True
+    param_sets["c2"]["stick_up_p"] = False
+    param_sets["c3"] = {}
+    param_sets["c3"]["dist"] = "normal"
+    param_sets["c3"]["dist_params"] = (0.2, 1.3)
+    param_sets["c3"]["dist_params_p"] = (-0.2, 0.7)
+    param_sets["c3"]["stick_prob_fn"] = lambda r: (r**1.7) / 2
+    param_sets["c3"]["stick_prob_fn_p"] = lambda r: (r**1.3) / 2
+    param_sets["c3"]["stick_up"] = False
+    param_sets["c3"]["stick_up_p"] = True
 
     # Return desired set
     if name in param_sets.keys():
         return param_sets[name]
     else:
-        raise ValueError(f'The predefined set {name} is not available')
+        raise ValueError(f"The predefined set {name} is not available")
 
 
 def append_domain_specific_feature(x, y, params):
-    """ Append a feature 'xnew' to the set 'x' that causes 'y' to stick (ie. flip to 1) as a function of this new feature
+    """Append a feature 'xnew' to the set 'x' that causes 'y' to stick (ie. flip to 1) as a function of this new feature
 
     x -- array of domain agnostic features that predict 'y'
     y -- array of outcome labels consisting of 0 or 1
@@ -209,11 +211,11 @@ def append_domain_specific_feature(x, y, params):
 
     params contains keys:
 
-    dist -- distribution of 'xnew': a string indicating a continuous distribution of 'normal' or discrete distribution of 'dirichlet'
+    dist -- distribution of 'xnew': a string indicating distribution to draw from (must be 'normal' for now)
     dist_params -- tuple of parameters of the distribution
     dist_params_p -- tuple of parameters of the distribution in the primed domain
-    stick_prob_fn -- function that takes a quantile from a continuous 'xnew' or a class from a discrete 'xnew' returns sticking probability
-    stick_prob_fn_p -- function that takes a quantile from a continuous 'xnew' or a class from a discrete 'xnew' and returns sticking probability in primed domain
+    stick_prob_fn -- function that takes a quantile from a continuous 'xnew' and returns sticking probability
+    stick_prob_fn_p -- same as 'stick_prob_fn' but in primed domain
     stick_up -- indicator of whether 'y' should stick to 1 (if False then stick to 0)
     stick_up_p -- indicator of whether 'y' in primed domain should stick to 1 (if False then stick to 0)
 
@@ -221,34 +223,41 @@ def append_domain_specific_feature(x, y, params):
 
     # Generate values of x
     n = y.shape[0]
-    if params['dist'] == 'normal':
+    if params["dist"] == "normal":
         # Construct the distribution functions
-        distfn = scipy.stats.norm(loc=params['dist_params'][0], scale=params['dist_params'][1])
-        distfn_p = scipy.stats.norm(loc=params['dist_params_p'][0], scale=params['dist_params_p'][1])
+        distfn = scipy.stats.norm(
+            loc=params["dist_params"][0], scale=params["dist_params"][1]
+        )
+        distfn_p = scipy.stats.norm(
+            loc=params["dist_params_p"][0], scale=params["dist_params_p"][1]
+        )
 
         # Generate values of 'xnew' in each domain
         xnew = distfn.rvs(size=n)
         xnew_p = distfn_p.rvs(size=n)
 
         # Evaluate the sticking probability for each value of xnew in each domain
-        stick_prob = params['stick_prob_fn'](distfn.cdf(xnew))
-        stick_prob_p = params['stick_prob_fn_p'](distfn_p.cdf(xnew_p))
+        stick_prob = params["stick_prob_fn"](distfn.cdf(xnew))
+        stick_prob_p = params["stick_prob_fn_p"](distfn_p.cdf(xnew_p))
 
     # Generate sticking indicators in each domain
     do_stick = numpy.random.binomial(1, stick_prob)
     do_stick_p = numpy.random.binomial(1, stick_prob_p)
 
     # Compute sticked version of y in each domain
-    if params['stick_up']:
-        y_stick = (1-do_stick)*y + do_stick
+    if params["stick_up"]:
+        y_stick = (1 - do_stick) * y + do_stick
     else:
-        y_stick = (1-do_stick)*y
-    if params['stick_up_p']:
-        y_stick_p = (1-do_stick_p)*y + do_stick_p
+        y_stick = (1 - do_stick) * y
+    if params["stick_up_p"]:
+        y_stick_p = (1 - do_stick_p) * y + do_stick_p
     else:
-        y_stick_p = (1-do_stick_p)*y
+        y_stick_p = (1 - do_stick_p) * y
 
     # Gather results
-    appended = {'x': numpy.concatenate([x, xnew.reshape(-1, 1)], axis=1), 'y': y_stick}
-    appended_p = {'x': numpy.concatenate([x, xnew_p.reshape(-1, 1)], axis=1), 'y': y_stick_p}
+    appended = {"x": numpy.concatenate([x, xnew.reshape(-1, 1)], axis=1), "y": y_stick}
+    appended_p = {
+        "x": numpy.concatenate([x, xnew_p.reshape(-1, 1)], axis=1),
+        "y": y_stick_p,
+    }
     return appended, appended_p

@@ -47,9 +47,11 @@ class TransportCalibrationOneCov:
 
         # Construct logistic regression models needed for computing density ratios
         self._PY_RX = sklearn.linear_model.LogisticRegression().fit(
-            numpy.concatenate([raw_pred, xvals.reshape(-1,1)], axis=1), labels
+            numpy.concatenate([raw_pred, xvals.reshape(-1, 1)], axis=1), labels
         )
-        self._PY_X = sklearn.linear_model.LogisticRegression().fit(xvals.reshape(-1,1), labels)
+        self._PY_X = sklearn.linear_model.LogisticRegression().fit(
+            xvals.reshape(-1, 1), labels
+        )
 
         # Process and store the primed distribution if data was provided or mark it as missing for now
         if isinstance(labels_primed, numpy.ndarray) and isinstance(
@@ -90,7 +92,7 @@ class TransportCalibrationOneCov:
         len_unique_primed = len(unique_labels_primed)
         if len_unique_primed != max_label_primed + 1:
             raise ValueError(
-                f"Seems like some label_primed examples are missing: max label = {max_label_primed}, length = {len_unique_primed}"
+                f"Some label_primed examples may be missing: max label = {max_label_primed}, length = {len_unique_primed}"
             )
         if len_unique_primed != self.n_classes:
             raise ValueError(
@@ -99,10 +101,10 @@ class TransportCalibrationOneCov:
 
         # Learn the distribution
         self._PY_X_primed = sklearn.linear_model.LogisticRegression().fit(
-            xvals_primed.reshape(-1,1), labels_primed
+            xvals_primed.reshape(-1, 1), labels_primed
         )
 
-    def calibrated_probability(self, scores, xvals):
+    def calibrated_probability(self, scores, xvals):  # noqa: C901
         """Compute P'(Y=c | R,X) ie. the posterior probability that Y is class c
 
         scores -- numpy array containing the raw model-scores with shape (N,C) (N-number of examples, C-number of classes)
@@ -209,7 +211,7 @@ class TransportCalibrationOneCov:
                 # This is the scores.shape is (N,C) case mentioned in the docstring
                 shaped_scores = scores
                 shaped_xvals = xvals
-        shaped_xvals = shaped_xvals.reshape(-1,1)
+        shaped_xvals = shaped_xvals.reshape(-1, 1)
 
         # Compute the density ratios: output has N rows to cover each example in 'scores' and C columns for the classes
         py_x = self._PY_X.predict_proba(shaped_xvals)
