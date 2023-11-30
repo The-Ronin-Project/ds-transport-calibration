@@ -3,6 +3,8 @@ fail_under = 80
 show_missing = True
 
 [run]
+relative_files = True
+source = src
 omit =
     src/*/_version.py
     tests*
