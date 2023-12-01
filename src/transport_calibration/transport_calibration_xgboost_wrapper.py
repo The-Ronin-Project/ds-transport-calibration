@@ -217,24 +217,33 @@ class TransportCalibrationOneCov_XGBClassifier(TransportCalibration_XGBClassifie
         """The index of the one_cov_feature in the full feature-array"""
         return self._transport_calibration_one_cov_feature_index
 
-    def _extract_one_cov_from_full_features(self, features):
+    def extract_one_cov_from_full_features(self, features):
         """Extract the adjustment covariate from the full feature-array"""
         try:
             return features[:, self.ocf_index].flatten()
         except IndexError:
-            raise ValueError(f"Invalid index={self.ocf_index} for adjustment covariate in feature array.")
+            raise ValueError(
+                f"Invalid index={self.ocf_index} for adjustment covariate in feature array."
+            )
 
     def transport_calibration_fit(
         self,
         training_features,
         training_labels,
+        labels_primed=None,
+        xvals_primed=None,
         make_runable=False,
     ):
         """Fit the calibrator using the provided training data
 
         training_features -- numpy array of shape (N,F) where N is the number of rows and F is the number of features
         training_labels -- numpy array of shape (N,) containing an integer class label from 0 to C-1 for each of the C classes
+        labels_primed -- numpy array of length M containing labels in the primed domain
+        xvals_primed -- numpy array of length M containing a float value for X at each example in the primed domain
         make_runable -- if True, init target dist-data from the training data so that calibrator can run immediately
+
+        Note: if valid data is provided for 'labels_primed' and 'xvals_primed', then the calibrator
+        will be made runable using that data regardless of the value of 'make_runable'
 
         """
         # Check state and determine the number of classes from the parent class
@@ -243,7 +252,7 @@ class TransportCalibrationOneCov_XGBClassifier(TransportCalibration_XGBClassifie
         )
 
         # Extract the adjustment covariate
-        xvals = self._extract_one_cov_from_full_features(training_features)
+        xvals = self.extract_one_cov_from_full_features(training_features)
 
         # Compute scores to be used for training
         training_scores = self.transport_calibration_predict_proba_uncalibrated(
@@ -260,8 +269,36 @@ class TransportCalibrationOneCov_XGBClassifier(TransportCalibration_XGBClassifie
         )
 
         # Initialize the target data-distribution with the training values if desired
-        if make_runable:
-            self._transport_calibration_calibrator.set_primed_distribution(training_labels, xvals)
+        if (
+            not isinstance(labels_primed, numpy.ndarray)
+            and not isinstance(xvals_primed, numpy.ndarray)
+            and make_runable
+        ):
+            self._transport_calibration_calibrator.set_primed_distribution(
+                training_labels, xvals
+            )
+
+        # Initialize the target data-distribution using the provided data if present
+        if isinstance(labels_primed, numpy.ndarray) and isinstance(
+            xvals_primed, numpy.ndarray
+        ):
+            self._transport_calibration_calibrator.set_primed_distribution(
+                labels_primed, xvals_primed
+            )
+
+    def set_primed_distribution(self, labels_primed, xvals_primed):
+        """Set the primed distribution using the provided data from the target domain
+
+        labels_primed -- numpy array of length M containing labels in the primed domain
+        xvals_primed -- numpy array of length M containing a float value for X at each example in the primed domain
+
+        This function may be used as an alternate to provided this data when initially fitting the calibrator, or
+        to update the distribution according to new target-domain data
+
+        """
+        self._transport_calibration_calibrator.set_primed_distribution(
+            labels_primed, xvals_primed
+        )
 
     def predict_proba(self, features):
         """Predict the calibrated probability
@@ -275,7 +312,7 @@ class TransportCalibrationOneCov_XGBClassifier(TransportCalibration_XGBClassifie
             raise ValueError("Calibrator not ready for inference.")
 
         # Extract the adjustment covariate
-        xvals = self._extract_one_cov_from_full_features(features)
+        xvals = self.extract_one_cov_from_full_features(features)
 
         # Compute uncalibrated scores
         scores = self.transport_calibration_predict_proba_uncalibrated(features)
