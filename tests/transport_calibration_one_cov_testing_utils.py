@@ -80,7 +80,13 @@ def run_e2e(  # noqa: C901
     rng = numpy.random.default_rng()
     expscale = 1 / 2.5
     alpha = float(rng.exponential(scale=expscale, size=1))
-    class_probability = rng.dirichlet([alpha] * n_classes)
+    class_probability = None
+    while class_probability is None:
+        class_probability = rng.dirichlet([alpha] * n_classes)
+
+        # Force a re-selection if any single value is too small
+        if numpy.any(class_probability < 0.05):
+            class_probability = None
 
     # Resample the data to achieve desired prevalence (factor of 4 may be adjusted if more or fewer samples are desired)
     target_domain_data_calibrate = stratified_sample_on_label(
