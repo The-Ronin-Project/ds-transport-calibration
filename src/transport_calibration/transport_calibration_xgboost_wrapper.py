@@ -1,6 +1,6 @@
 import warnings
 import numpy
-from . import transport_calibration
+from . import transport_calibration, transport_calibration_one_cov
 import xgboost
 import xgboost.sklearn
 
@@ -202,4 +202,85 @@ class TransportCalibration_XGBClassifier(TransportCalibration_XGBClassifier_Base
         # Calibrate and return the adjusted probabilities
         return self._transport_calibration_calibrator.calibrated_probability(
             scores, self.transport_calibration_class_probability
+        )
+
+
+class TransportCalibrationOneCov_XGBClassifier(TransportCalibration_XGBClassifier_Base):
+    def __init__(self, *, objective: _SklObjective = "binary:logistic", **kwargs):
+        self._transport_calibration_one_cov_feature_index = kwargs.pop(
+            "transport_calibration_one_cov_feature_index", -1
+        )
+        super().__init__(objective=objective, **kwargs)
+
+    @property
+    def ocf_index(self):
+        """The index of the one_cov_feature in the full feature-array"""
+        return self._transport_calibration_one_cov_feature_index
+
+    def _extract_one_cov_from_full_features(self, features):
+        """Extract the adjustment covariate from the full feature-array"""
+        try:
+            return features[:, self.ocf_index].flatten()
+        except IndexError:
+            raise ValueError(f"Invalid index={self.ocf_index} for adjustment covariate in feature array.")
+
+    def transport_calibration_fit(
+        self,
+        training_features,
+        training_labels,
+        make_runable=False,
+    ):
+        """Fit the calibrator using the provided training data
+
+        training_features -- numpy array of shape (N,F) where N is the number of rows and F is the number of features
+        training_labels -- numpy array of shape (N,) containing an integer class label from 0 to C-1 for each of the C classes
+        make_runable -- if True, init target dist-data from the training data so that calibrator can run immediately
+
+        """
+        # Check state and determine the number of classes from the parent class
+        n_classes = self.count_classes_and_check_transport_calibration_inputs(
+            training_labels
+        )
+
+        # Extract the adjustment covariate
+        xvals = self._extract_one_cov_from_full_features(training_features)
+
+        # Compute scores to be used for training
+        training_scores = self.transport_calibration_predict_proba_uncalibrated(
+            training_features
+        )
+
+        # Instantiate and train the calibrator
+        self._transport_calibration_calibrator = (
+            transport_calibration_one_cov.TransportCalibrationOneCov(
+                training_scores,
+                training_labels,
+                xvals,
+            )
+        )
+
+        # Initialize the target data-distribution with the training values if desired
+        if make_runable:
+            self._transport_calibration_calibrator.set_primed_distribution(training_labels, xvals)
+
+    def predict_proba(self, features):
+        """Predict the calibrated probability
+
+        features -- numpy array of shape (N,F) where N is the number of rows and F is the number of features
+
+        """
+        # Check that the object is initialized for calibrated outputs
+        self.transport_calibration_raise_if_not_fit()
+        if not self._transport_calibration_calibrator.ready_for_inference:
+            raise ValueError("Calibrator not ready for inference.")
+
+        # Extract the adjustment covariate
+        xvals = self._extract_one_cov_from_full_features(features)
+
+        # Compute uncalibrated scores
+        scores = self.transport_calibration_predict_proba_uncalibrated(features)
+
+        # Calibrate and return the adjusted probabilities
+        return self._transport_calibration_calibrator.calibrated_probability(
+            scores, xvals
         )
