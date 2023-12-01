@@ -11,12 +11,16 @@ except ImportError:
     from xgboost.sklearn import SklObjective as _SklObjective
 
 
-class TransportCalibration_XGBClassifier(xgboost.XGBClassifier):
+class TransportCalibration_XGBClassifier_Base(xgboost.XGBClassifier):
     def __init__(self, *, objective: _SklObjective = "binary:logistic", **kwargs):
-        self._automatically_fit_calibrator_at_model_fit = kwargs.pop("automatically_fit_calibrator_at_model_fit", False)
+        self._automatically_fit_calibrator_at_model_fit = kwargs.pop(
+            "automatically_fit_calibrator_at_model_fit", False
+        )
         super().__init__(objective=objective, **kwargs)
         self._transport_calibration_calibrator = None
-        self._transport_calibration_class_probability = None
+
+    def transport_calibration_fit(self, *args, **kwargs):
+        ...
 
     def transport_calibration_predict_proba_uncalibrated(self, *args, **kwargs):
         """Access to uncalibrated version of predict_proba"""
@@ -30,16 +34,64 @@ class TransportCalibration_XGBClassifier(xgboost.XGBClassifier):
         # If requested, automatically fit the calibrator and initialize it to be runnable
         if self._automatically_fit_calibrator_at_model_fit:
             # Fit the calibrator with the same data
-            self.transport_calibration_fit(args[0], args[1])
-
-            # Initialize the class-probability according to the training data
-            self.transport_calibration_class_probability = None
+            self.transport_calibration_fit(args[0], args[1], make_runable=True)
         return self
 
     @property
     def estimator(self):
         """Make this class compatible as a drop-in replacement to CalibratedClassiferCV from sklearn"""
         return self
+
+    def count_classes_and_check_transport_calibration_inputs(
+        self,
+        training_labels,
+    ):
+        """Check the inputs to the transport calibration fitter to ensure it is ready to fit
+
+        training_labels -- numpy array of shape (N,) containing an integer class label from 0 to C-1 for each of the C classes
+
+        Returns the number of classes that will be fit
+
+        """
+        # Check state
+        if self._transport_calibration_calibrator is not None:
+            warnings.warn(
+                "Calibrator is already trained- now retraining and overwriting"
+            )
+
+        # Determine the number of classes from the parent class
+        try:
+            n_classes = self.n_classes_
+        except AttributeError:
+            raise ValueError(
+                "Does not seem that this classifier was trained yet- need to train it first."
+            )
+
+        # Check inputs
+        if isinstance(training_labels, numpy.ndarray):
+            # Check that labels fit within expected range
+            if min(training_labels) < 0 or max(training_labels) >= n_classes:
+                raise ValueError(
+                    "Invalid range of training labels: must be from 0 to n_classes-1"
+                )
+        else:
+            raise ValueError(
+                "Invalid input type for training_labels: must be a numpy array"
+            )
+        return n_classes
+
+    def transport_calibration_raise_if_not_fit(self):
+        """Check that the calibrator is fit"""
+        if self._transport_calibration_calibrator is None:
+            raise ValueError(
+                "Need to first fit the calibrator by calling transport_calibration_fit"
+            )
+
+
+class TransportCalibration_XGBClassifier(TransportCalibration_XGBClassifier_Base):
+    def __init__(self, *, objective: _SklObjective = "binary:logistic", **kwargs):
+        super().__init__(objective=objective, **kwargs)
+        self._transport_calibration_class_probability = None
 
     @property
     def transport_calibration_class_probability(self):
@@ -78,6 +130,7 @@ class TransportCalibration_XGBClassifier(xgboost.XGBClassifier):
         training_labels,
         training_class_probability=None,
         ratio_estimator=None,
+        make_runable=False,
     ):
         """Fit the calibrator using the provided training data
 
@@ -88,35 +141,15 @@ class TransportCalibration_XGBClassifier(xgboost.XGBClassifier):
         ratio_estimator -- string indicating which density estimator to use:
                            'histogram' only works for binary classification
                            'logistic' for any dimensionality
+        make_runable -- if True, init target class-probability from the training data so that calibrator can run immediately
 
         if ratio_estimator is None, then automatically use 'histogram' for binary classification and 'logistic' for multi-class
 
         """
-        # Check state
-        if self._transport_calibration_calibrator is not None:
-            warnings.warn(
-                "Calibrator is already trained- now retraining and overwriting"
-            )
-
-        # Determine the number of classes from the parent class
-        try:
-            n_classes = self.n_classes_
-        except AttributeError:
-            raise ValueError(
-                "Does not seem that this classifier was trained yet- need to train it first."
-            )
-
-        # Check inputs
-        if isinstance(training_labels, numpy.ndarray):
-            # Check that labels fit within expected range
-            if min(training_labels) < 0 or max(training_labels) >= n_classes:
-                raise ValueError(
-                    "Invalid range of training labels: must be from 0 to n_classes-1"
-                )
-        else:
-            raise ValueError(
-                "Invalid input type for training_labels: must be a numpy array"
-            )
+        # Check state and determine the number of classes from the parent class
+        n_classes = self.count_classes_and_check_transport_calibration_inputs(
+            training_labels
+        )
 
         # Compute class prevalence if desired
         if training_class_probability is None:
@@ -146,6 +179,10 @@ class TransportCalibration_XGBClassifier(xgboost.XGBClassifier):
             )
         )
 
+        # Initialize the target class prevalence with the training values if desired
+        if make_runable:
+            self.transport_calibration_class_probability = None
+
     def predict_proba(self, features):
         """Predict the calibrated probability
 
@@ -153,10 +190,7 @@ class TransportCalibration_XGBClassifier(xgboost.XGBClassifier):
 
         """
         # Check that the object is initialized for calibrated outputs
-        if self._transport_calibration_calibrator is None:
-            raise ValueError(
-                "Need to first fit the calibrator by calling transport_calibration_fit"
-            )
+        self.transport_calibration_raise_if_not_fit()
         if self.transport_calibration_class_probability is None:
             raise ValueError(
                 "Need to set the value of transport_calibration_class_probability for the target domain"
