@@ -39,40 +39,21 @@ def run_e2e(  # noqa: C901
         raise ValueError("Only 2 classes are supported at the moment")
 
     # Simulate data
-    total_samples = n_train + n_calibrate + n_validate
-    x, y = sklearn.datasets.make_classification(
-        n_samples=total_samples,
-        n_features=40,
-        n_informative=10,
-        class_sep=0.65,
-        flip_y=0.25,
+    sd = generate_data(
+        n_train,
+        n_calibrate,
+        n_validate,
+        predefined_domain_param_set,
         n_classes=n_classes,
     )
 
-    # Modify simulated data to have 1 domain-specific covariate
-    appended, appended_p = append_domain_specific_feature(
-        x,
-        y,
-        get_params_for_generating_domain_specific_feature(predefined_domain_param_set),
-    )
-
-    # Split the datasets in the unprimed domain
-    x_train = appended["x"][0:n_train]
-    y_train = appended["y"][0:n_train]
-    x_calibrate = appended["x"][n_train : (n_train + n_calibrate)]
-    y_calibrate = appended["y"][n_train : (n_train + n_calibrate)]
-
-    # Split the calibration/validation sets in the target (ie. primed) domain
-    xp_calibrate = appended_p["x"][n_train : (n_train + n_calibrate)]
-    yp_calibrate = appended_p["y"][n_train : (n_train + n_calibrate)]
-    xp_validate = appended_p["x"][(n_train + n_calibrate) :]
-    yp_validate = appended_p["y"][(n_train + n_calibrate) :]
-
     # Fit the classifier
     if model_type == "logistic":
-        model = sklearn.linear_model.LogisticRegression().fit(x_train, y_train)
+        model = sklearn.linear_model.LogisticRegression().fit(
+            sd["x_train"], sd["y_train"]
+        )
     elif model_type == "xgboost":
-        model = xgboost.XGBClassifier().fit(x_train, y_train)
+        model = xgboost.XGBClassifier().fit(sd["x_train"], sd["y_train"])
     else:
         raise ValueError("Internal inconsistency")
 
@@ -90,20 +71,20 @@ def run_e2e(  # noqa: C901
 
     # Resample the data to achieve desired prevalence (factor of 4 may be adjusted if more or fewer samples are desired)
     target_domain_data_calibrate = stratified_sample_on_label(
-        class_probability, xp_calibrate, yp_calibrate, n_calibrate // 4
+        class_probability, sd["xp_calibrate"], sd["yp_calibrate"], n_calibrate // 4
     )
     target_domain_data_validate = stratified_sample_on_label(
-        class_probability, xp_validate, yp_validate, n_validate // 4
+        class_probability, sd["xp_validate"], sd["yp_validate"], n_validate // 4
     )
 
     # Compute model scores on the calibration dataset to use to train the calibrator
-    y_calibrate_predicted = model.predict_proba(x_calibrate)
+    y_calibrate_predicted = model.predict_proba(sd["x_calibrate"])
 
     # Fit the calibrator
     calibrator = transport_calibration_one_cov.TransportCalibrationOneCov(
         y_calibrate_predicted,
-        y_calibrate,
-        x_calibrate[:, -1].flatten(),
+        sd["y_calibrate"],
+        sd["x_calibrate"][:, -1].flatten(),
         labels_primed=target_domain_data_calibrate["y"],
         xvals_primed=target_domain_data_calibrate["x"][:, -1].flatten(),
     )
@@ -117,8 +98,8 @@ def run_e2e(  # noqa: C901
         alt_objs.append(
             transport_calibration_one_cov.TransportCalibrationOneCov(
                 y_calibrate_predicted[:, 1].flatten(),
-                y_calibrate,
-                x_calibrate[:, -1].flatten(),
+                sd["y_calibrate"],
+                sd["x_calibrate"][:, -1].flatten(),
                 labels_primed=target_domain_data_calibrate["y"],
                 xvals_primed=target_domain_data_calibrate["x"][:, -1].flatten(),
             )
@@ -165,6 +146,59 @@ def run_e2e(  # noqa: C901
         for i in range(len(alt_outputs)):
             validation_metrics[f"alt_{i}"] = alt_outputs[i].mean(axis=0)
     return validation_metrics, calibrator
+
+
+def generate_data(
+    n_train, n_calibrate, n_validate, predefined_domain_param_set, n_classes=2
+):
+    """Generate data using a simulation
+
+    n_train -- number of samples to generate for training the classifier
+    n_calibrate -- number of samples to generate for training the calibrator
+    n_validate -- number of samples to generate for computing the validation statistics
+    predefined_domain_param_set -- a string indicating the name of a set of pre-defined parameters
+                                   (see get_params_for_generating_domain_specific_feature(...) function below)
+    n_classes -- number of classes to generate
+
+    Note: to make this function simple, there is no way to pass parameters to the simulator.
+    The defaults should be fine for common values of n_classes and number of samples.
+
+    """
+    # Check inputs
+    if n_classes != 2:
+        raise ValueError("Only 2 classes are supported at the moment")
+
+    # Simulate data
+    total_samples = n_train + n_calibrate + n_validate
+    x, y = sklearn.datasets.make_classification(
+        n_samples=total_samples,
+        n_features=40,
+        n_informative=10,
+        class_sep=0.65,
+        flip_y=0.25,
+        n_classes=n_classes,
+    )
+
+    # Modify simulated data to have 1 domain-specific covariate
+    appended, appended_p = append_domain_specific_feature(
+        x,
+        y,
+        get_params_for_generating_domain_specific_feature(predefined_domain_param_set),
+    )
+
+    # Split the datasets in the unprimed domain
+    out = {}
+    out["x_train"] = appended["x"][0:n_train]
+    out["y_train"] = appended["y"][0:n_train]
+    out["x_calibrate"] = appended["x"][n_train : (n_train + n_calibrate)]
+    out["y_calibrate"] = appended["y"][n_train : (n_train + n_calibrate)]
+
+    # Split the calibration/validation sets in the target (ie. primed) domain
+    out["xp_calibrate"] = appended_p["x"][n_train : (n_train + n_calibrate)]
+    out["yp_calibrate"] = appended_p["y"][n_train : (n_train + n_calibrate)]
+    out["xp_validate"] = appended_p["x"][(n_train + n_calibrate) :]
+    out["yp_validate"] = appended_p["y"][(n_train + n_calibrate) :]
+    return out
 
 
 def get_params_for_generating_domain_specific_feature(name):
