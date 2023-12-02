@@ -247,9 +247,7 @@ class TransportCalibrationOneCov_XGBClassifier(TransportCalibration_XGBClassifie
 
         """
         # Check state and determine the number of classes from the parent class
-        n_classes = self.count_classes_and_check_transport_calibration_inputs(
-            training_labels
-        )
+        self.count_classes_and_check_transport_calibration_inputs(training_labels)
 
         # Extract the adjustment covariate
         xvals = self.extract_one_cov_from_full_features(training_features)
