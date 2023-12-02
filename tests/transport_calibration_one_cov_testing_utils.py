@@ -192,6 +192,8 @@ def generate_data(
     out["y_train"] = appended["y"][0:n_train]
     out["x_calibrate"] = appended["x"][n_train : (n_train + n_calibrate)]
     out["y_calibrate"] = appended["y"][n_train : (n_train + n_calibrate)]
+    out["x_validate"] = appended["x"][(n_train + n_calibrate) :]
+    out["y_validate"] = appended["y"][(n_train + n_calibrate) :]
 
     # Split the calibration/validation sets in the target (ie. primed) domain
     out["xp_calibrate"] = appended_p["x"][n_train : (n_train + n_calibrate)]
@@ -213,7 +215,7 @@ def get_params_for_generating_domain_specific_feature(name):
     param_sets["c1"] = {}
     param_sets["c1"]["dist"] = "normal"
     param_sets["c1"]["dist_params"] = (0.2, 1.3)
-    param_sets["c1"]["dist_params_p"] = (0.2, 1.3)
+    param_sets["c1"]["dist_params_p"] = (0.5, 1.1)
     param_sets["c1"]["stick_prob_fn"] = lambda r: (r**1.7) / 2
     param_sets["c1"]["stick_prob_fn_p"] = lambda r: (r**1.3) / 2
     param_sets["c1"]["stick_up"] = True
@@ -222,14 +224,14 @@ def get_params_for_generating_domain_specific_feature(name):
     param_sets["c2"]["dist"] = "normal"
     param_sets["c2"]["dist_params"] = (0.2, 1.3)
     param_sets["c2"]["dist_params_p"] = (-0.2, 0.7)
-    param_sets["c2"]["stick_prob_fn"] = lambda r: (r**1.7) / 2
-    param_sets["c2"]["stick_prob_fn_p"] = lambda r: (r**1.3) / 2
+    param_sets["c2"]["stick_prob_fn"] = lambda r: (r**1.3) / 2
+    param_sets["c2"]["stick_prob_fn_p"] = lambda r: (r**1.7) / 2
     param_sets["c2"]["stick_up"] = True
     param_sets["c2"]["stick_up_p"] = False
     param_sets["c3"] = {}
     param_sets["c3"]["dist"] = "normal"
     param_sets["c3"]["dist_params"] = (0.2, 1.3)
-    param_sets["c3"]["dist_params_p"] = (-0.2, 0.7)
+    param_sets["c3"]["dist_params_p"] = (-0.5, 0.8)
     param_sets["c3"]["stick_prob_fn"] = lambda r: (r**1.7) / 2
     param_sets["c3"]["stick_prob_fn_p"] = lambda r: (r**1.3) / 2
     param_sets["c3"]["stick_up"] = False
