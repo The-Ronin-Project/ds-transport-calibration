@@ -18,7 +18,7 @@ be encountered in the real world.
 
 Rather than requiring an additional calibration dataset to train a post-hoc adjustment, as is done in the
 standard calibrators built into
-[sklearn] (https://scikit-learn.org/stable/modules/generated/sklearn.calibration.CalibratedClassifierCV.html#sklearn.calibration.CalibratedClassifierCV)
+[sklearn](https://scikit-learn.org/stable/modules/generated/sklearn.calibration.CalibratedClassifierCV.html#sklearn.calibration.CalibratedClassifierCV)
 , transport calibration can "transport" the mis-calibrated model directly to
 the desired base rate by simply inputting that base rate. For example, if a positive class occurred with a
 frequency of 0.3 in the training data, but only occurs with a rate of 0.001 in the real world, these two
