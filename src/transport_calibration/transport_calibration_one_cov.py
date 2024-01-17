@@ -101,15 +101,16 @@ class TransportCalibrationOneCov:
             xvals_primed.reshape(-1, 1), labels_primed
         )
 
-    def calibrated_probability(self, scores, xvals):  # noqa: C901
-        """Compute P'(Y=c | R,X) ie. the posterior probability that Y is class c
+    def _prep_shape(self, scores, xvals):
+        """Prepare the shape of the data arrays to be compatible with a generic implementation of the math
 
         scores -- numpy array containing the raw model-scores with shape (N,C) (N-number of examples, C-number of classes)
         xvals -- numpy array containing the value of X for each example with shape (N,)
 
+        Returns: generically-shaped arrays and some flags indicating how to repack the final output to match the input shape
+
         Note: for binary classification, this class accepts simplified array shapes a follows:
             scores may be shape (N,) and then the score is assumed to correspond to C=1 (the positive class)
-
 
         Shape of the output depends on the shape of the input 'scores'
 
@@ -127,6 +128,7 @@ class TransportCalibrationOneCov:
                 if scores.shape is (N,) then output will have shape (N,), and each value will be the C=1 value
                 if scores is float then the output will be float, and will be the C=1 value
                     and xvals must also be a float
+
         """
         # Ensure that this object is fully initialized for inference
         if not self.ready_for_inference:
@@ -209,6 +211,33 @@ class TransportCalibrationOneCov:
                 shaped_scores = scores
                 shaped_xvals = xvals
         shaped_xvals = shaped_xvals.reshape(-1, 1)
+
+        # Gather outputs
+        prepped = {}
+        prepped["shaped_scores"] = shaped_scores
+        prepped["shaped_xvals"] = shaped_xvals
+        prepped["scalar_output"] = scalar_output
+        prepped["flatten_output"] = flatten_output
+        prepped["slice_class_1_output"] = slice_class_1_output
+        return prepped
+
+    def calibrated_probability(self, scores, xvals):  # noqa: C901
+        """Compute P'(Y=c | R,X) ie. the posterior probability that Y is class c
+
+        scores -- numpy array containing the raw model-scores with shape (N,C) (N-number of examples, C-number of classes)
+        xvals -- numpy array containing the value of X for each example with shape (N,)
+
+        Note: this function accepts a variety of input shapes depending on the context.
+        For details, please see the docstring of _prep_shape(...)
+
+        """
+        # Check inputs and prepare data shapes to be compatible for the generic math implementation below
+        prepped = self._prep_shape(scores, xvals)
+        shaped_scores = prepped["shaped_scores"]
+        shaped_xvals = prepped["shaped_xvals"]
+        scalar_output = prepped["scalar_output"]
+        flatten_output = prepped["flatten_output"]
+        slice_class_1_output = prepped["slice_class_1_output"]
 
         # Compute the density ratios: output has N rows to cover each example in 'scores' and C columns for the classes
         py_x = self._PY_X.predict_proba(shaped_xvals)
