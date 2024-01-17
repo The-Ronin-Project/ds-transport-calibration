@@ -17,8 +17,8 @@ relatively rare events, because often there are more examples of the rare event 
 be encountered in the real world.
 
 Rather than requiring an additional calibration dataset to train a post-hoc adjustment, as is done in the
-standard calibrators [built into sklearn]
-(https://scikit-learn.org/stable/modules/generated/sklearn.calibration.CalibratedClassifierCV.html#sklearn.calibration.CalibratedClassifierCV)
+standard calibrators built into
+[sklearn] (https://scikit-learn.org/stable/modules/generated/sklearn.calibration.CalibratedClassifierCV.html#sklearn.calibration.CalibratedClassifierCV)
 , transport calibration can "transport" the mis-calibrated model directly to
 the desired base rate by simply inputting that base rate. For example, if a positive class occurred with a
 frequency of 0.3 in the training data, but only occurs with a rate of 0.001 in the real world, these two
@@ -27,12 +27,12 @@ will be immediately adjusted to produce positive-classes at the rate of 0.001.
 
 This library also generalizes to multi-class classifiers, where the base rate is then input as a vector.
 
-The above mentioned use-cases are addressed by the TransportCalibration object provided by this library and the
+The above mentioned use-cases are all addressed by the TransportCalibration object provided by this library and the
 corresponding XGB wrapper TransportCalibration_XGBClassifier.
 
-A more unusual/advanced use-case is addressed by the TransportCalibrationOneCov. This applies when one particular
+A more unusual/advanced use-case is addressed by the TransportCalibrationOneCov. It applies when one particular
 covariate (a.k.a. feature) depends on the domain and also affects the rate. For example, in predicting risk for
-cancer patients, perhaps the occurrence rate of the positive class depends on the age of the patient. In that case,
+cancer patients, perhaps the occurrence-rate of the positive class depends on the age of the patient. In that case,
 we could use patient-age as the adjustment covariate and then the pre-trained model could be calibrated with
 a rate that depends on that feature. An XGB wrapper is also provided for this more advanced algorithm.
 
