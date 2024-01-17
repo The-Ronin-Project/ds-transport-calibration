@@ -101,7 +101,7 @@ class TransportCalibrationOneCov:
             xvals_primed.reshape(-1, 1), labels_primed
         )
 
-    def _prep_shape(self, scores, xvals):
+    def _prep_shape(self, scores, xvals):  # noqa: C901
         """Prepare the shape of the data arrays to be compatible with a generic implementation of the math
 
         scores -- numpy array containing the raw model-scores with shape (N,C) (N-number of examples, C-number of classes)
