@@ -69,10 +69,7 @@ class TransportCalibrationOneCov:
     @property
     def ready_for_inference(self):
         """Check that the object is fully initialized and ready for inference"""
-        if self._PY_X_primed is not None:
-            return True
-        else:
-            return False
+        return self._PY_X_primed is not None
 
     def set_primed_distribution(self, labels_primed, xvals_primed):
         """Fit the primed data and store the distribution for use during inference

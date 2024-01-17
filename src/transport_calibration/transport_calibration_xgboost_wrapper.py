@@ -53,7 +53,7 @@ class TransportCalibration_XGBClassifier_Base(xgboost.XGBClassifier):
         Returns the number of classes that will be fit
 
         """
-        # Check state
+        # This function will prep for fit, so we do not expect calibrator to already be fit
         if self._transport_calibration_calibrator is not None:
             warnings.warn(
                 "Calibrator is already trained- now retraining and overwriting"
