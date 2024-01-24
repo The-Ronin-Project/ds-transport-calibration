@@ -16,7 +16,7 @@ class TransportCalibration:
                            'histogram' only works for binary classification
                            'logistic' for any dimensionality
 
-        Note: for binary classification, this class accepts simplified array shapes a follows:
+        Note: for binary classification, this class accepts simplified array shapes as follows:
             raw_pred may be shape (N,) and then the score is assumed to correspond to C=1 (the positive class)
             training_class_probability may be shape (1,) or it may be a scalar float. The value corresponds to C=1
 
